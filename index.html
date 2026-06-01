@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d0f12">
+<title>자재코드 변환기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:#0d0f12; --surface:#16191e; --surface2:#1d2128;
+    --line:#2a2f38; --line2:#363c47;
+    --text:#eef1f5; --muted:#8b929d;
+    --amber:#ffc20a; --amber-dim:#5a4a07;
+    --green:#2fd47e; --red:#ff5a5a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Oxanium',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100dvh;
+    padding:18px 16px 40px;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+      radial-gradient(120% 60% at 50% -10%, rgba(255,194,10,.08), transparent 60%);
+    overflow-x:hidden;
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+  .reveal{opacity:0;transform:translateY(12px);animation:rise .55s cubic-bezier(.2,.8,.2,1) forwards;}
+  @keyframes rise{to{opacity:1;transform:none;}}
+
+  header{margin-bottom:22px;}
+  .kicker{
+    font-size:12px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--amber);font-weight:700;display:flex;align-items:center;gap:8px;
+  }
+  .kicker::before{content:"";width:22px;height:2px;background:var(--amber);display:inline-block;}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.01em;margin-top:8px;line-height:1.05;}
+  h1 span{color:var(--muted);font-weight:500;}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-top:16px;
+  }
+  .label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:10px;}
+
+  button{font-family:inherit;cursor:pointer;border:none;}
+  .scan-btn{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+    background:var(--amber);color:#1a1402;font-weight:800;font-size:17px;
+    padding:16px;border-radius:12px;letter-spacing:.02em;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .scan-btn:active{transform:scale(.98);filter:brightness(1.05);}
+  .scan-btn svg{width:22px;height:22px;}
+
+  #reader{margin-top:14px;border-radius:12px;overflow:hidden;border:1px solid var(--line2);display:none;}
+  #reader.on{display:block;}
+  #reader video{display:block;width:100%!important;}
+
+  .divider{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;
+    letter-spacing:.2em;text-transform:uppercase;margin:20px 2px 14px;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  textarea{
+    width:100%;min-height:84px;resize:vertical;
+    background:var(--surface2);border:1px solid var(--line2);border-radius:12px;
+    color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.5;
+    padding:13px 14px;outline:none;transition:border-color .15s ease;
+  }
+  textarea:focus{border-color:var(--amber);}
+  textarea::placeholder{color:#5b626d;}
+
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+  .chip{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .chip.full{grid-column:1 / -1;}
+  .chip .k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .chip .v{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;margin-top:3px;word-break:break-all;}
+
+  .result{
+    margin-top:16px;border:1px solid var(--amber-dim);
+    background:linear-gradient(180deg, rgba(255,194,10,.07), rgba(255,194,10,.02));
+    border-radius:16px;padding:18px;display:none;
+  }
+  .result.on{display:block;animation:rise .35s ease forwards;}
+  .out-code{
+    font-family:'JetBrains Mono',monospace;font-weight:800;
+    font-size:clamp(30px,9vw,44px);letter-spacing:.04em;color:var(--amber);
+    text-align:center;padding:8px 0 16px;word-break:break-all;line-height:1.1;
+  }
+  .copy-btn{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+    background:var(--surface2);border:1px solid var(--line2);color:var(--text);
+    font-weight:800;font-size:16px;padding:15px;border-radius:12px;
+    transition:all .15s ease;
+  }
+  .copy-btn:active{transform:scale(.98);}
+  .copy-btn.done{background:rgba(47,212,126,.14);border-color:var(--green);color:var(--green);}
+  .copy-btn svg{width:19px;height:19px;}
+
+  .hint{color:var(--muted);font-size:13px;margin-top:12px;line-height:1.5;text-align:center;}
+  .hint.err{color:var(--red);}
+  footer{text-align:center;color:#4d5560;font-size:11px;letter-spacing:.12em;margin-top:28px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="reveal" style="animation-delay:.02s">
+    <div class="kicker">Material Code</div>
+    <h1>자재코드 <span>변환기</span></h1>
+  </header>
+
+  <div class="card reveal" style="animation-delay:.08s">
+    <div class="label">QR 스캔 / 입력</div>
+    <button class="scan-btn" id="scanBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
+      카메라로 스캔
+    </button>
+    <div id="reader"></div>
+
+    <div class="divider">또는 붙여넣기</div>
+    <textarea id="input" placeholder="자재번호 : 128143 제조년월 : 25.11 자재 ID : G1S349849692"></textarea>
+    <p class="hint" id="hint">QR 내용을 붙여넣거나 자재 ID를 입력하세요.</p>
+  </div>
+
+  <div class="card reveal" style="animation-delay:.14s" id="parsedCard" hidden>
+    <div class="label">인식된 정보</div>
+    <div class="fields">
+      <div class="chip"><div class="k">자재번호</div><div class="v" id="fNo">—</div></div>
+      <div class="chip"><div class="k">제조년월</div><div class="v" id="fDate">—</div></div>
+      <div class="chip full"><div class="k">자재 ID</div><div class="v" id="fId">—</div></div>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="label" style="text-align:center;color:var(--amber)">변환 코드</div>
+    <div class="out-code" id="outCode">—</div>
+    <button class="copy-btn" id="copyBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+      복사하기
+    </button>
+  </div>
+
+  <footer>G1S3 → 012 · 오프라인 동작</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const input = $('#input'), hint = $('#hint');
+const parsedCard = $('#parsedCard'), result = $('#result');
+const outCode = $('#outCode'), copyBtn = $('#copyBtn');
+
+function parse(raw){
+  const text = (raw||'').trim();
+  if(!text){ return null; }
+  const idMatch = text.match(/G1S3[0-9A-Z]*/i);
+  const noMatch = text.match(/자재\s*번호\s*[:：]?\s*([0-9A-Za-z]+)/);
+  const dateMatch = text.match(/제조\s*년월\s*[:：]?\s*([0-9.]+)/);
+  if(!idMatch) return { id:null, no:noMatch?noMatch[1]:null, date:dateMatch?dateMatch[1]:null, out:null };
+  const id = idMatch[0].toUpperCase();
+  const out = id.replace(/^G1S3/i, '012');
+  return { id, no:noMatch?noMatch[1]:null, date:dateMatch?dateMatch[1]:null, out };
+}
+
+function render(){
+  const p = parse(input.value);
+  if(!p){
+    parsedCard.hidden = true; result.classList.remove('on');
+    hint.textContent = 'QR 내용을 붙여넣거나 자재 ID를 입력하세요.'; hint.classList.remove('err');
+    return;
+  }
+  $('#fNo').textContent  = p.no   || '—';
+  $('#fDate').textContent= p.date || '—';
+  $('#fId').textContent  = p.id   || '—';
+  parsedCard.hidden = false;
+
+  if(p.out){
+    outCode.textContent = p.out;
+    result.classList.add('on');
+    hint.textContent = '변환 완료. 아래 코드를 복사하세요.'; hint.classList.remove('err');
+    resetCopy();
+  }else{
+    result.classList.remove('on');
+    hint.textContent = 'G1S3로 시작하는 자재 ID를 찾지 못했어요. 입력을 확인해주세요.'; hint.classList.add('err');
+  }
+}
+
+function resetCopy(){
+  copyBtn.classList.remove('done');
+  copyBtn.querySelector('svg').nextSibling.textContent = ' 복사하기';
+  copyBtn.childNodes[2].textContent = '복사하기';
+}
+
+input.addEventListener('input', render);
+
+copyBtn.addEventListener('click', async () => {
+  const val = outCode.textContent.trim();
+  if(!val || val === '—') return;
+  let ok = false;
+  try{ await navigator.clipboard.writeText(val); ok = true; }
+  catch(e){
+    try{
+      const t = document.createElement('textarea');
+      t.value = val; t.style.position='fixed'; t.style.opacity='0';
+      document.body.appendChild(t); t.focus(); t.select();
+      ok = document.execCommand('copy'); document.body.removeChild(t);
+    }catch(_){ ok = false; }
+  }
+  if(ok){
+    copyBtn.classList.add('done');
+    copyBtn.childNodes[2].textContent = '복사됨!';
+    if(navigator.vibrate) navigator.vibrate(25);
+    setTimeout(resetCopy, 1600);
+  }
+});
+
+// ---- Camera scanning ----
+let qr = null, scanning = false;
+const scanBtn = $('#scanBtn'), reader = $('#reader');
+
+scanBtn.addEventListener('click', async () => {
+  if(scanning){ await stopScan(); return; }
+  if(typeof Html5Qrcode === 'undefined'){
+    hint.textContent = '스캐너 모듈을 불러오지 못했어요. 붙여넣기를 이용해주세요.'; hint.classList.add('err');
+    return;
+  }
+  reader.classList.add('on');
+  qr = new Html5Qrcode('reader');
+  try{
+    await qr.start({ facingMode:'environment' }, { fps:10, qrbox:{width:230,height:230} },
+      (decoded) => { input.value = decoded; render(); stopScan(); if(navigator.vibrate) navigator.vibrate(40); },
+      () => {});
+    scanning = true;
+    scanBtn.childNodes[2].textContent = '스캔 중지';
+  }catch(e){
+    reader.classList.remove('on');
+    hint.textContent = '카메라를 열 수 없어요 (권한·HTTPS 필요). 붙여넣기로 진행하세요.'; hint.classList.add('err');
+  }
+});
+
+async function stopScan(){
+  if(qr){ try{ await qr.stop(); await qr.clear(); }catch(e){} }
+  scanning = false; reader.classList.remove('on');
+  scanBtn.childNodes[2].textContent = '카메라로 스캔';
+}
+</script>
+</body>
+</html>
